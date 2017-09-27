@@ -16,6 +16,9 @@ stores isn't possible.
 (strings) in the callback `cb`. This will generally mean delving into the
 innards of each blob store you wish to support and writing this functionality.
 
+In summary: this module is both a neat idea and a terrible idea that only
+manages to really get part-way there.
+
 ## Usage
 
 ```js
@@ -26,6 +29,9 @@ var StoreMem = require('abstract-blob-store')
 
 var fs = StoreFs('./fs')
 var mem = StoreMem()
+
+// patch `fs` to have a `._list()` function
+// patch `mem` to have a `._list()` function
 
 var ws = fs.createWriteStream('foo', function (err, metadata) {
   console.log('fs key', metadata.key)
