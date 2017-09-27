@@ -40,7 +40,7 @@ module.exports = function (store, opts) {
         sendRequested(remoteWants, function () {
           debug('' + ID, 'ALL SENT')
           filesSent = true
-          if (filesReceived) terminate()
+          if (filesReceived || !numFilesToRecv) terminate()
         })
         break
       case 'wait-remote-files-length':
@@ -121,6 +121,8 @@ module.exports = function (store, opts) {
 
   function sendRequested (toSend, done) {
     var pending = toSend.length
+
+    if (toSend.length === 0) return process.nextTick(done)
 
     debug('' + ID, 'writing', pending)
     encoder.write(JSON.stringify(pending))
