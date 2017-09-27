@@ -1,0 +1,24 @@
+{
+  "name": "blob-store-replication-stream",
+  "description": "replicate two abstract-blob-store compatible stores together",
+  "author": "Stephen Whitmore <sww@eight.net>",
+  "version": "0.0.0",
+  "repository": {
+    "url": "git://github.com/noffle/blob-store-replication-stream.git"
+  },
+  "homepage": "https://github.com/noffle/blob-store-replication-stream",
+  "bugs": "https://github.com/noffle/blob-store-replication-stream/issues",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/*.js",
+    "lint": "standard"
+  },
+  "keywords": [
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "tape": "~4.6.2",
+    "standard": "~10.0.0"
+  },
+  "license": "ISC"
+}
