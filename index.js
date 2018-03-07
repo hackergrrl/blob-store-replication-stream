@@ -25,7 +25,6 @@ module.exports = function (store, opts) {
   var numFilesToRecv = null
   var pendingFilename = null
   var filesSent = false
-  var filesReceived = false
   function onData (data) {
     switch (state) {
       case 'wait-remote-haves':
@@ -40,29 +39,29 @@ module.exports = function (store, opts) {
         sendRequested(remoteWants, function () {
           debug('' + ID, 'ALL SENT')
           filesSent = true
-          if (filesReceived || !numFilesToRecv) terminate()
+          if (numFilesToRecv === 0) terminate()
         })
         break
       case 'wait-remote-files-length':
         state = 'wait-remote-file-name'
         numFilesToRecv = Number(JSON.parse(data.toString()))
-        debug('got # of remote files incoming', numFilesToRecv)
+        debug(''+ID, 'got # of remote files incoming', numFilesToRecv)
+        if (numFilesToRecv === 0 && filesSent) terminate()
         break
       case 'wait-remote-file-name':
         state = 'wait-remote-file-data'
         pendingFilename = data.toString()
-        debug('got a filename', pendingFilename)
+        debug(''+ID, 'got a filename', pendingFilename)
         break
       case 'wait-remote-file-data':
         var fn = pendingFilename
-        debug('recving a remote file', fn)
+        debug(''+ID, 'recving a remote file', fn)
         var ws = store.createWriteStream(fn, function (err) {
           // TODO: handle error
           filesXferred++ && emitProgress()
-          debug('recv\'d a remote file', fn)
+          debug(''+ID, 'recv\'d a remote file', fn)
           if (--numFilesToRecv === 0) {
             debug('' + ID, 'ALL RECEIVED')
-            filesReceived = true
             if (filesSent) terminate()
           }
         })
@@ -74,7 +73,7 @@ module.exports = function (store, opts) {
   }
 
   function terminate () {
-    debug('TERMINATING')
+    debug('' + ID, 'TERMINATING')
     // TODO: terminate replication
     encoder.end()
     debug('' + ID, 'replication done')
@@ -122,11 +121,11 @@ module.exports = function (store, opts) {
   function sendRequested (toSend, done) {
     var pending = toSend.length
 
-    if (toSend.length === 0) return process.nextTick(done)
-
     debug('' + ID, 'writing', pending)
     encoder.write(JSON.stringify(pending))
     debug('' + ID, 'wrote # of entries count')
+
+    if (toSend.length === 0) return process.nextTick(done)
 
     toSend.forEach(function (name) {
       debug('' + ID, 'collecting', name)
@@ -136,7 +135,7 @@ module.exports = function (store, opts) {
 
         filesXferred++ && emitProgress()
 
-        debug('' + ID, 'collected + wrote locally', name, err, data && data.length)
+        debug('' + ID, 'collected + wrote', name, err, data && data.length)
         if (--pending === 0) done()
       })
     })
