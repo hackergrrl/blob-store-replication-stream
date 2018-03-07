@@ -2,7 +2,7 @@
   "name": "blob-store-replication-stream",
   "description": "replicate two abstract-blob-store compatible stores together",
   "author": "Stephen Whitmore <sww@eight.net>",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "repository": {
     "url": "git://github.com/noffle/blob-store-replication-stream.git"
   },
