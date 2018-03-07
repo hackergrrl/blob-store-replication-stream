@@ -5,6 +5,8 @@ var rimraf = require('rimraf')
 var fs = require('fs')
 var path = require('path')
 var replicate = require('..')
+var http = require('http')
+var websocket = require('websocket-stream')
 
 function test (name, run) {
   tapeTest(name, function (t) {
@@ -118,10 +120,61 @@ test('replication stream: 3 files <-> 2 files (1 common)', function (t, dir, don
     t.ok(fs.existsSync(path.join(root2, '1900-01')))
     t.equal(fs.readFileSync(path.join(root2, '1900-01', '1900-01-01_first.png'), 'utf8'), 'elder')
 
-    // done()
-    // t.end()
+    done()
   }
 })
+
+test('websocket replication', function (t, dir, done) {
+  t.plan(4)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store(root1)
+  var root2 = path.join(dir, '2')
+  var store2 = Store(root2)
+
+  var wss, web
+
+  writeFile(store1, 'foo.txt', 'bar', function (err) {
+    t.error(err)
+
+    // server
+    web = http.createServer()
+    web.listen(2389)
+    console.log('server up')
+    wss = websocket.createServer({server:web}, function (socket) {
+      var rs = replicate(store2)
+      socket.pipe(rs).pipe(socket)
+      rs.on('end', done.bind(null, 'rs'))
+      socket.on('end', done.bind(null, 'socket'))
+    })
+
+    // client
+    console.log('client up')
+    var ws = websocket(`ws://localhost:2389`, {
+      perMessageDeflate: false,
+      binary: true
+    })
+    var r1 = replicate(store1)
+    r1.pipe(ws).pipe(r1)
+    r1.on('end', done.bind(null, 'r1'))
+    ws.on('end', done.bind(null, 'ws'))
+  })
+
+  var pending = 4
+  function done (name) {
+    console.log('done', pending, name)
+    if (!--pending) {
+      console.log('all done')
+
+      t.ok(true, 'replication ended')
+      t.ok(fs.existsSync(path.join(root2, 'foo', 'foo.txt')))
+      t.equal(fs.readFileSync(path.join(root2, 'foo', 'foo.txt'), 'utf8'), 'bar')
+
+      web.close(done)
+    }
+  }
+})
+
 
 function writeFile (store, name, data, done) {
   var ws = store.createWriteStream(name)

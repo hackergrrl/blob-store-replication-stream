@@ -25,7 +25,14 @@ module.exports = function (store, opts) {
   var numFilesToRecv = null
   var pendingFilename = null
   var filesSent = false
+  var remoteDone = false
+  var localDone = false
+
   function onData (data) {
+    if (data.toString() === '"done"') {
+      debug(''+ID, 'remote done')
+      remoteDone = true
+    }
     switch (state) {
       case 'wait-remote-haves':
         state = 'wait-remote-wants'
@@ -67,16 +74,33 @@ module.exports = function (store, opts) {
         })
         ws.end(data)
 
-        state = 'wait-remote-file-name'
+        if (numFilesToRecv <= 1) state = 'wait-remote-done'
+        else state = 'wait-remote-file-name'
+        break
+      case 'wait-remote-done':
+        if (numFilesToRecv > 0 || !filesSent) break
+        if (data.toString() === '"done"') {
+          terminate()
+        } else {
+          console.log('unexpected msg', data)
+        }
         break
     }
   }
 
   function terminate () {
-    debug('' + ID, 'TERMINATING')
-    // TODO: terminate replication
-    encoder.end()
-    debug('' + ID, 'replication done')
+    if (remoteDone) {
+      debug('' + ID, 'replication done')
+      debug('' + ID, 'TERMINATING')
+      // TODO: terminate replication
+      if (!localDone) encoder.write(JSON.stringify('done'))
+      encoder.end()
+    } else {
+      encoder.write(JSON.stringify('done'))
+      debug('' + ID, 'waiting for remote done')
+      state = 'wait-remote-done'
+    }
+    localDone = true
   }
 
   store._list(function (err, names) {
