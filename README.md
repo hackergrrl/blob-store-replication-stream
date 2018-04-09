@@ -91,7 +91,10 @@ This function will throw an `Error` if no `store._list()` function is present.
 
 Valid `opts` include:
 
-- `mode`: if set to `'pull'` entries will only be fetched, not sent
+- `mode`:
+  - `'sync'`: (default) entries will sent and fetched. the two stores will contain the same blobs post-replication
+  - `'pull'`: entries will only be fetched, not sent
+  - `'push'`: entries will only be sent, not fetched
 
 ## Install
 

@@ -28,9 +28,26 @@ module.exports = function (store, opts) {
   var remoteDone = false
   var localDone = false
 
+  // sync
   // 1. send your haves
   // 2. await their haves
   // 3. figure out what you want from them
+  // 4. send your wants
+  // 5. await their wants
+  // 6. get their wants and start sending them (# of entries, then entries)
+
+  // pull
+  // 1. await their haves
+  // 2. send your haves (just the ones you have in common)
+  // 3. figure out what you want from them (everything you don't have)
+  // 4. send your wants
+  // 5. await their wants
+  // 6. get their wants and start sending them (# of entries, then entries)
+
+  // push
+  // 1. await their haves
+  // 2. send your haves
+  // 3. figure out what you want from them (always nothing)
   // 4. send your wants
   // 5. await their wants
   // 6. get their wants and start sending them (# of entries, then entries)
@@ -148,6 +165,10 @@ module.exports = function (store, opts) {
   function sendWants () {
     // send local wants
     var wants = missing(localHaves, remoteHaves)
+
+    // In 'push' mode, we never want anything
+    if (opts.mode === 'push') wants = []
+
     filesToXfer += wants.length
     debug('' + ID, 'wrote local wants', JSON.stringify(wants))
     encoder.write(JSON.stringify(wants))
