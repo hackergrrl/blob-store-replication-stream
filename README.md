@@ -79,7 +79,7 @@ hello fs world
 var createReplicationStream = require('blob-store-replication-stream')
 ```
 
-### var stream = createReplicationStream(store)
+### var stream = createReplicationStream(store[, opts])
 
 Creates the duplex stream `stream` from the abstract-blob-store instance
 `store`.
@@ -88,6 +88,10 @@ Pipe this into another replication stream, and have that other replication
 stream also pipe into this, to create a full duplex channel of communication.
 
 This function will throw an `Error` if no `store._list()` function is present.
+
+Valid `opts` include:
+
+- `mode`: if set to `'pull'` entries will only be fetched, not sent
 
 ## Install
 

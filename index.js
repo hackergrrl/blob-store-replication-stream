@@ -28,6 +28,13 @@ module.exports = function (store, opts) {
   var remoteDone = false
   var localDone = false
 
+  // 1. send your haves
+  // 2. await their haves
+  // 3. figure out what you want from them
+  // 4. send your wants
+  // 5. await their wants
+  // 6. get their wants and start sending them (# of entries, then entries)
+
   function onData (data) {
     if (data.toString() === '"done"') {
       debug(''+ID, 'remote done')
@@ -36,8 +43,10 @@ module.exports = function (store, opts) {
     switch (state) {
       case 'wait-remote-haves':
         state = 'wait-remote-wants'
+        decoder.pause()
         handleRemoteHaves(data)
         sendWants()
+        decoder.resume()
         break
       case 'wait-remote-wants':
         state = 'wait-remote-files-length'
@@ -110,7 +119,11 @@ module.exports = function (store, opts) {
       debug('' + ID, 'lhave', names)
       localHaves = names
 
-      sendHaves()
+      // Defer on sending haves if in pull-only mode
+      if (opts.mode !== 'pull') sendHaves()
+
+      // begin reading
+      decoder.on('data', onData)
     }
   })
 
@@ -118,14 +131,18 @@ module.exports = function (store, opts) {
     // send local haves
     debug('' + ID, 'sent local haves')
     encoder.write(JSON.stringify(localHaves))
-
-    // begin reading
-    decoder.on('data', onData)
   }
 
   function handleRemoteHaves (data) {
     debug('' + ID, 'got remote haves', data.toString())
     remoteHaves = JSON.parse(data.toString())
+
+    // In push mode: deduplicate the entries both sides have in common; just
+    // ask for the ones missing from the local store
+    if (opts.mode === 'pull') {
+      localHaves = intersect(localHaves, remoteHaves)
+      sendHaves()
+    }
   }
 
   function sendWants () {
@@ -170,4 +187,18 @@ module.exports = function (store, opts) {
   function emitProgress () {
     progressFn(filesXferred / filesToXfer)
   }
+}
+
+// [x], [x] -> [x]
+// What is common to a and b?
+function intersect (a, b) {
+  var m = []
+  var amap = {}
+  a.forEach(function (v) { amap[v] = true })
+
+  b.forEach(function (v) {
+    if (amap[v]) m.push(v)
+  })
+
+  return m
 }
