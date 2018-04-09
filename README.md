@@ -1,7 +1,7 @@
 # blob-store-replication-stream
 
 > Replicate two
-> [abstract-blob-store](https://github.com/maxogden/abstract-blob-store) compatible stores together.
+> [abstract-blob-store](https://github.com/maxogden/abstract-blob-store) compatible stores together (with caveats).
 
 It would be very useful if any two blob stores could be replicated to each other
 over a simple duplex stream.
@@ -12,12 +12,10 @@ the names of all blobs in the store. Without this, a full sync between blob
 stores isn't possible.
 
 *The caveat*: any blob store you wish to use for replication must have a
-`._list(cb)` function implemented on it, which returns an array of keys
-(strings) in the callback `cb`. This will generally mean delving into the
-innards of each blob store you wish to support and writing this functionality.
-
-In summary: this module is both a neat idea and a terrible idea that only
-manages to really get part-way there.
+`._list(cb)` function monkey patched onto it, which should return an array of
+keys (strings) in the callback `cb`. This will generally mean delving into the
+innards of each blob store you wish to support and figuring out how to add
+this functionality.
 
 ## Usage
 
@@ -25,13 +23,17 @@ manages to really get part-way there.
 var createReplicationStream = require('blob-store-replication-stream')
 
 var StoreFs = require('fs-blob-store')
+StoreFs.prototype._list = function (cb) {
+  require('fs').readdir(this.path, cb)
+}
+
 var StoreMem = require('abstract-blob-store')
+StoreMem.prototype._list = function (cb) {
+  process.nextTick(cb, null, Object.keys(this.data))
+}
 
 var fs = StoreFs('./fs')
 var mem = StoreMem()
-
-// patch `fs` to have a `._list()` function
-// patch `mem` to have a `._list()` function
 
 var ws = fs.createWriteStream('foo', function (err, metadata) {
   console.log('fs key', metadata.key)
