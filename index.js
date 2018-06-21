@@ -90,7 +90,7 @@ module.exports = function (store, opts) {
         var fn = pendingFilename
         debug(''+ID, 'recving a remote file', fn)
         var ws = store.createWriteStream(fn, function (err) {
-          // TODO: handle error
+          if (err) return dup.emit('error', err)
           filesXferred++ && emitProgress()
           debug(''+ID, 'recv\'d a remote file', fn)
           if (--numFilesToRecv === 0) {
@@ -130,9 +130,8 @@ module.exports = function (store, opts) {
   }
 
   store._list(function (err, names) {
-    if (err) {
-      // TODO: handle error case
-    } else {
+    if (err) return dup.emit('error', err)
+    else {
       debug('' + ID, 'lhave', names)
       localHaves = names
 
@@ -192,6 +191,7 @@ module.exports = function (store, opts) {
     toSend.forEach(function (name) {
       debug('' + ID, 'collecting', name)
       collect(store.createReadStream(name), function (err, data) {
+        if (err) return dup.emit('error', err)
         encoder.write(name)
         encoder.write(data)
 
