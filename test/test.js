@@ -172,7 +172,7 @@ test('websocket replication', function (t, dir, done) {
 })
 
 test('pull-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
-  t.plan(22)
+  t.plan(24)
 
   var root1 = path.join(dir, '1')
   var store1 = Store(root1)
@@ -216,6 +216,8 @@ test('pull-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
     t.equal(fs.readFileSync(path.join(root2, '1900-01', '1900-01-01_first.png'), 'utf8'), 'elder')
     t.ok(fs.existsSync(path.join(root2, '2010-01')))
     t.equal(fs.readFileSync(path.join(root2, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
+    t.notOk(fs.existsSync(path.join(root2, '2010-01', '2010-01-01_foo.png'), 'utf8'))
+    t.notOk(fs.existsSync(path.join(root2, '1976-12', '1976-12-17_quux.png'), 'utf8'))
 
     done()
   }
@@ -259,8 +261,6 @@ test('push-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
     t.equal(fs.readFileSync(path.join(root1, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
     t.ok(fs.existsSync(path.join(root1, '1976-12')))
     t.equal(fs.readFileSync(path.join(root1, '1976-12', '1976-12-17_quux.png'), 'utf8'), 'unix')
-    t.ok(fs.existsSync(path.join(root1, '1976-12')))
-    t.equal(fs.readFileSync(path.join(root1, '1976-12', '1976-12-17_quux.png'), 'utf8'), 'unix')
     t.ok(fs.existsSync(path.join(root1, '1900-01')))
     t.equal(fs.readFileSync(path.join(root1, '1900-01', '1900-01-01_first.png'), 'utf8'), 'elder')
 
@@ -269,6 +269,8 @@ test('push-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
     t.equal(fs.readFileSync(path.join(root2, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
     t.ok(fs.existsSync(path.join(root2, '1900-01')))
     t.equal(fs.readFileSync(path.join(root2, '1900-01', '1900-01-01_first.png'), 'utf8'), 'elder')
+    t.notOk(fs.existsSync(path.join(root2, '2010-01', '2010-01-01_foo.png'), 'utf8'))
+    t.notOk(fs.existsSync(path.join(root2, '1976-12', '1976-12-17_quux.png'), 'utf8'))
 
     done()
   }
