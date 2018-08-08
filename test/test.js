@@ -276,6 +276,48 @@ test('push-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
   }
 })
 
+test('both sides in push-mode: no files xferred', function (t, dir, done) {
+  t.plan(11)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
+  var root2 = path.join(dir, '2')
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
+
+  var pending = 2
+  writeFile(store1, '1976-12-17_quux.png', 'unix', written)
+  writeFile(store2, '2010-01-05_bar.png', 'goodbye', written)
+
+  function written (err) {
+    t.error(err)
+    var opts = {
+      s1: { mode: 'push' },
+      s2: { mode: 'push' }
+    }
+    if (--pending === 0) replicateStores(store1, store2, opts, check)
+  }
+
+  function check (err) {
+    t.error(err)
+
+    t.equal(fs.readdirSync(root1).length, 1)
+    t.equal(fs.readdirSync(root2).length, 1)
+
+    t.equal(fs.readdirSync(path.join(root1, '1976-12')).length, 1)
+    t.equal(fs.readdirSync(path.join(root2, '2010-01')).length, 1)
+
+    // Check all files: store 1
+    t.ok(fs.existsSync(path.join(root1, '1976-12')))
+    t.equal(fs.readFileSync(path.join(root1, '1976-12', '1976-12-17_quux.png'), 'utf8'), 'unix')
+
+    // Check all files: store 2
+    t.ok(fs.existsSync(path.join(root2, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root2, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
+
+    done()
+  }
+})
+
 test('subdirectory', function (t, dir, done) {
   t.plan(5)
 
