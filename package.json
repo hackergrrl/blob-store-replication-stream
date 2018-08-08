@@ -15,6 +15,7 @@
   },
   "keywords": [],
   "dependencies": {
+    "abstract-blob-store": "^3.3.4",
     "collect-stream": "^1.2.1",
     "debug": "^3.1.0",
     "duplexify": "^3.5.1",
@@ -22,7 +23,7 @@
   },
   "devDependencies": {
     "rimraf": "^2.6.2",
-    "safe-fs-blob-store": "0.0.2",
+    "safe-fs-blob-store": "^1.0.1",
     "standard": "~10.0.0",
     "tape": "~4.6.2",
     "tempy": "^0.2.1",

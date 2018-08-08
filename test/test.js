@@ -69,9 +69,9 @@ test('replication stream: 3 files <-> 2 files (1 common)', function (t, dir, don
   t.plan(26)
 
   var root1 = path.join(dir, '1')
-  var store1 = Store(root1)
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
   var root2 = path.join(dir, '2')
-  var store2 = Store(root2)
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
 
   var pending = 5
   writeFile(store1, '2010-01-01_foo.png', 'hello', written)
@@ -89,8 +89,8 @@ test('replication stream: 3 files <-> 2 files (1 common)', function (t, dir, don
     t.error(err)
 
     // Four files in each store
-    t.equal(fs.readdirSync(root1).length, 4)
-    t.equal(fs.readdirSync(root2).length, 4)
+    t.equal(fs.readdirSync(root1).length, 3)
+    t.equal(fs.readdirSync(root2).length, 3)
 
     // Two files in the 2010-01 subdir
     t.equal(fs.readdirSync(path.join(root1, '2010-01')).length, 2)
@@ -124,9 +124,9 @@ test('websocket replication', function (t, dir, done) {
   t.plan(4)
 
   var root1 = path.join(dir, '1')
-  var store1 = Store(root1)
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
   var root2 = path.join(dir, '2')
-  var store2 = Store(root2)
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
 
   var wss, web
 
@@ -175,9 +175,9 @@ test('pull-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
   t.plan(24)
 
   var root1 = path.join(dir, '1')
-  var store1 = Store(root1)
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
   var root2 = path.join(dir, '2')
-  var store2 = Store(root2)
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
 
   var pending = 5
   writeFile(store1, '2010-01-01_foo.png', 'hello', written)
@@ -194,8 +194,8 @@ test('pull-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
   function check (err) {
     t.error(err)
 
-    t.equal(fs.readdirSync(root1).length, 4)
-    t.equal(fs.readdirSync(root2).length, 3)
+    t.equal(fs.readdirSync(root1).length, 3)
+    t.equal(fs.readdirSync(root2).length, 2)
 
     // Two files in the 2010-01 subdir
     t.equal(fs.readdirSync(path.join(root1, '2010-01')).length, 2)
@@ -227,9 +227,9 @@ test('push-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
   t.plan(24)
 
   var root1 = path.join(dir, '1')
-  var store1 = Store(root1)
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
   var root2 = path.join(dir, '2')
-  var store2 = Store(root2)
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
 
   var pending = 5
   writeFile(store1, '2010-01-01_foo.png', 'hello', written)
@@ -247,8 +247,8 @@ test('push-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
     t.error(err)
 
     // Four files in each store
-    t.equal(fs.readdirSync(root1).length, 4)
-    t.equal(fs.readdirSync(root2).length, 3)
+    t.equal(fs.readdirSync(root1).length, 3)
+    t.equal(fs.readdirSync(root2).length, 2)
 
     // Two files in the 2010-01 subdir
     t.equal(fs.readdirSync(path.join(root1, '2010-01')).length, 2)
@@ -272,6 +272,38 @@ test('push-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
     t.notOk(fs.existsSync(path.join(root2, '2010-01', '2010-01-01_foo.png'), 'utf8'))
     t.notOk(fs.existsSync(path.join(root2, '1976-12', '1976-12-17_quux.png'), 'utf8'))
 
+    done()
+  }
+})
+
+test('subdirectory', function (t, dir, done) {
+  t.plan(5)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store(root1)
+  var root2 = path.join(dir, '2')
+  var store2 = Store(root2)
+
+  var ws = store1.createWriteStream('original/fa1ee1d1b61d9afcc99b1a8bd9b690ac.jpg')
+  ws.on('finish', function () {
+    replicateStores(store1, store2, check)
+  })
+  ws.on('error', function (err) {
+    t.error(err)
+  })
+  ws.write('hello')
+  ws.end()
+
+  function check (err) {
+    t.error(err)
+    store1.exists('original/fa1ee1d1b61d9afcc99b1a8bd9b690ac.jpg', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'exists in original store')
+    })
+    store2.exists('original/fa1ee1d1b61d9afcc99b1a8bd9b690ac.jpg', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'exists in remote store')
+    })
     done()
   }
 })
