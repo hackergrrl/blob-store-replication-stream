@@ -129,7 +129,7 @@ module.exports = function (store, opts) {
     localDone = true
   }
 
-  store._list(function (err, names) {
+  ;(store.list || store._list).call(store, function (err, names) {
     if (err) return dup.emit('error', err)
     else {
       debug('' + ID, 'lhave', names)
