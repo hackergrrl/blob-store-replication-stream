@@ -18,6 +18,7 @@ function test (name, run) {
   })
 }
 
+/*
 test('empty <-> empty', function (t, dir, done) {
   var root1 = path.join(dir, '1')
   var store1 = Store(root1)
@@ -346,6 +347,136 @@ test('subdirectory', function (t, dir, done) {
       t.error(err)
       t.ok(exists, 'exists in remote store')
     })
+    done()
+  }
+})
+
+test('null mode: 1 <-> empty', function (t, dir, done) {
+  t.plan(5)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store(root1)
+  var root2 = path.join(dir, '2')
+  var store2 = Store(root2)
+
+  var ws = store1.createWriteStream('2010-01-01_foo.png')
+  ws.on('finish', function () {
+    replicateStores(store1, store2, { s1: { mode: 'null' } }, check)
+  })
+  ws.on('error', function (err) {
+    t.error(err)
+  })
+  ws.write('hello')
+  ws.end()
+
+  function check (err) {
+    t.error(err)
+    store1.exists('2010-01-01_foo.png', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'exists in original store')
+    })
+    store2.exists('2010-01-01_foo.png', function (err, exists) {
+      t.error(err)
+      t.notOk(exists, 'does not exist in remote store')
+    })
+    done()
+  }
+})
+
+test('null mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
+  t.plan(26)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
+  var root2 = path.join(dir, '2')
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
+
+  var pending = 5
+  writeFile(store1, '2010-01-01_foo.png', 'hello', written)
+  writeFile(store1, '2010-01-05_bar.png', 'goodbye', written)
+  writeFile(store1, '1976-12-17_quux.png', 'unix', written)
+  writeFile(store2, '1900-01-01_first.png', 'elder', written)
+  writeFile(store2, '2010-01-05_bar.png', 'goodbye', written)
+
+  function written (err) {
+    t.error(err)
+    if (--pending === 0) replicateStores(store1, store2, { s1: { mode: 'null' } }, check)
+  }
+
+  function check (err) {
+    t.error(err)
+
+    // Four files in each store
+    t.equal(fs.readdirSync(root1).length, 2)
+    t.equal(fs.readdirSync(root2).length, 2)
+
+    // Two files in the 2010-01 subdir
+    t.equal(fs.readdirSync(path.join(root1, '2010-01')).length, 2)
+    t.equal(fs.readdirSync(path.join(root2, '2010-01')).length, 1)
+
+    // Check all files: store 1
+    t.ok(fs.existsSync(path.join(root1, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root1, '2010-01', '2010-01-01_foo.png'), 'utf8'), 'hello')
+    t.ok(fs.existsSync(path.join(root1, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root1, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
+    t.ok(fs.existsSync(path.join(root1, '1976-12')))
+    t.equal(fs.readFileSync(path.join(root1, '1976-12', '1976-12-17_quux.png'), 'utf8'), 'unix')
+    t.notOk(fs.existsSync(path.join(root1, '1900-01')))
+    t.notOk(fs.existsSync(path.join(root1, '1900-01', '1900-01-01_first.png')))
+
+    // Check all files: store 2
+    t.ok(fs.existsSync(path.join(root2, '2010-01')))
+    t.notOk(fs.existsSync(path.join(root2, '2010-01', '2010-01-01_foo.png')))
+    t.ok(fs.existsSync(path.join(root2, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root2, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
+    t.notOk(fs.existsSync(path.join(root2, '1976-12')))
+    t.notOk(fs.existsSync(path.join(root2, '1976-12', '1976-12-17_quux.png')))
+    t.ok(fs.existsSync(path.join(root2, '1900-01')))
+    t.equal(fs.readFileSync(path.join(root2, '1900-01', '1900-01-01_first.png'), 'utf8'), 'elder')
+
+    done()
+  }
+})
+*/
+
+test('both sides in null-mode: no files xferred', function (t, dir, done) {
+  t.plan(11)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
+  var root2 = path.join(dir, '2')
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
+
+  var pending = 2
+  writeFile(store1, '1976-12-17_quux.png', 'unix', written)
+  writeFile(store2, '2010-01-05_bar.png', 'goodbye', written)
+
+  function written (err) {
+    t.error(err)
+    var opts = {
+      s1: { mode: 'null' },
+      s2: { mode: 'null' }
+    }
+    if (--pending === 0) replicateStores(store1, store2, opts, check)
+  }
+
+  function check (err) {
+    t.error(err)
+
+    t.equal(fs.readdirSync(root1).length, 1)
+    t.equal(fs.readdirSync(root2).length, 1)
+
+    t.equal(fs.readdirSync(path.join(root1, '1976-12')).length, 1)
+    t.equal(fs.readdirSync(path.join(root2, '2010-01')).length, 1)
+
+    // Check all files: store 1
+    t.ok(fs.existsSync(path.join(root1, '1976-12')))
+    t.equal(fs.readFileSync(path.join(root1, '1976-12', '1976-12-17_quux.png'), 'utf8'), 'unix')
+
+    // Check all files: store 2
+    t.ok(fs.existsSync(path.join(root2, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root2, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
+
     done()
   }
 })

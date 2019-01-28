@@ -52,6 +52,13 @@ module.exports = function (store, opts) {
   // 5. await their wants
   // 6. get their wants and start sending them (# of entries, then entries)
 
+  // null
+  // 1. await their haves
+  // 2. send your haves (just the ones you have in common)
+  // 3. send your wants (always nothing)
+  // 5. await their wants (should be nothing)
+  // 6. terminate (nothing to send or recv)
+
   function onData (data) {
     if (data.toString() === '"done"') {
       debug(''+ID, 'remote done')
@@ -135,8 +142,8 @@ module.exports = function (store, opts) {
       debug('' + ID, 'lhave', names)
       localHaves = names
 
-      // Defer on sending haves if in pull-only mode
-      if (opts.mode !== 'pull') sendHaves()
+      // Defer on sending haves if in {pull,null} mode
+      if (opts.mode !== 'pull' && opts.mode !== 'null') sendHaves()
 
       // begin reading
       decoder.on('data', onData)
@@ -153,9 +160,9 @@ module.exports = function (store, opts) {
     debug('' + ID, 'got remote haves', data.toString())
     remoteHaves = JSON.parse(data.toString())
 
-    // In push mode: deduplicate the entries both sides have in common; just
-    // ask for the ones missing from the local store
-    if (opts.mode === 'pull') {
+    // In {pull,null} mode: deduplicate the entries both sides have in common;
+    // just ask for the ones missing from the local store
+    if (opts.mode === 'pull' || opts.mode === 'null') {
       localHaves = intersect(localHaves, remoteHaves)
       sendHaves()
     }
@@ -165,8 +172,8 @@ module.exports = function (store, opts) {
     // send local wants
     var wants = missing(localHaves, remoteHaves)
 
-    // In 'push' mode, we never want anything
-    if (opts.mode === 'push') wants = []
+    // In {push,null} mode, we never want anything
+    if (opts.mode === 'push' || opts.mode === 'null') wants = []
 
     filesToXfer += wants.length
     debug('' + ID, 'wrote local wants', JSON.stringify(wants))
