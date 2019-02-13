@@ -95,6 +95,7 @@ Valid `opts` include:
   - `'sync'`: (default) entries will sent and fetched. the two stores will contain the same blobs post-replication
   - `'pull'`: entries will only be fetched, not sent
   - `'push'`: entries will only be sent, not fetched
+- `filter`: a function that takes a filename and returns `true` if it should be synced to the other side, or `false` if it shouldn't
 
 ## Install
 

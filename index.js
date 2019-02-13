@@ -108,7 +108,7 @@ module.exports = function (store, opts) {
         if (data.toString() === '"done"') {
           terminate()
         } else {
-          console.log('unexpected msg', data)
+          console.error('unexpected msg', data)
         }
         break
     }
@@ -132,6 +132,7 @@ module.exports = function (store, opts) {
   ;(store.list || store._list).call(store, function (err, names) {
     if (err) return dup.emit('error', err)
     else {
+      if (opts.filter) names = names.filter(opts.filter)
       debug('' + ID, 'lhave', names)
       localHaves = names
 

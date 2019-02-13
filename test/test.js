@@ -136,7 +136,6 @@ test('websocket replication', function (t, dir, done) {
     // server
     web = http.createServer()
     web.listen(2389)
-    console.log('server up')
     wss = websocket.createServer({server:web}, function (socket) {
       var rs = replicate(store2)
       socket.pipe(rs).pipe(socket)
@@ -145,7 +144,6 @@ test('websocket replication', function (t, dir, done) {
     })
 
     // client
-    console.log('client up')
     var ws = websocket(`ws://localhost:2389`, {
       perMessageDeflate: false,
       binary: true
@@ -158,10 +156,7 @@ test('websocket replication', function (t, dir, done) {
 
   var pending = 4
   function done (name) {
-    console.log('done', pending, name)
     if (!--pending) {
-      console.log('all done')
-
       t.ok(true, 'replication ended')
       t.ok(fs.existsSync(path.join(root2, 'foo', 'foo.txt')))
       t.equal(fs.readFileSync(path.join(root2, 'foo', 'foo.txt'), 'utf8'), 'bar')
@@ -346,6 +341,63 @@ test('subdirectory', function (t, dir, done) {
       t.error(err)
       t.ok(exists, 'exists in remote store')
     })
+    done()
+  }
+})
+
+test('opts.filter', function (t, dir, done) {
+  t.plan(24)
+
+  function filterFn (name) {
+    return /foo/.test(name)
+  }
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
+  var root2 = path.join(dir, '2')
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
+
+  var pending = 5
+  writeFile(store1, '2010-01-01_foo.png', 'hello', written)
+  writeFile(store1, '2010-01-05_bar.png', 'goodbye', written)
+  writeFile(store1, '1976-12-17_quux.png', 'unix', written)
+  writeFile(store2, '1900-01-01_first.png', 'elder', written)
+  writeFile(store2, '2010-01-05_bar.png', 'goodbye', written)
+
+  function written (err) {
+    t.error(err)
+    if (--pending === 0) replicateStores(store1, store2, {s1:{filter:filterFn}}, check)
+  }
+
+  function check (err) {
+    t.error(err)
+
+    // Four files in each store
+    t.equal(fs.readdirSync(root1).length, 3)
+    t.equal(fs.readdirSync(root2).length, 2)
+
+    // Two files in the 2010-01 subdir
+    t.equal(fs.readdirSync(path.join(root1, '2010-01')).length, 2)
+    t.equal(fs.readdirSync(path.join(root2, '2010-01')).length, 2)
+
+    // Check all files: store 1
+    t.ok(fs.existsSync(path.join(root1, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root1, '2010-01', '2010-01-01_foo.png'), 'utf8'), 'hello')
+    t.ok(fs.existsSync(path.join(root1, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root1, '2010-01', '2010-01-05_bar.png'), 'utf8'), 'goodbye')
+    t.ok(fs.existsSync(path.join(root1, '1976-12')))
+    t.equal(fs.readFileSync(path.join(root1, '1976-12', '1976-12-17_quux.png'), 'utf8'), 'unix')
+    t.ok(fs.existsSync(path.join(root1, '1900-01')))
+    t.equal(fs.readFileSync(path.join(root1, '1900-01', '1900-01-01_first.png'), 'utf8'), 'elder')
+
+    // Check all files: store 2
+    t.ok(fs.existsSync(path.join(root2, '2010-01')))
+    t.equal(fs.readFileSync(path.join(root2, '2010-01', '2010-01-01_foo.png'), 'utf8'), 'hello')
+    t.notOk(fs.existsSync(path.join(root2, '1976-12')))
+    t.notOk(fs.existsSync(path.join(root2, '1976-12', '1976-12-17_quux.png')))
+    t.ok(fs.existsSync(path.join(root2, '1900-01')))
+    t.equal(fs.readFileSync(path.join(root2, '1900-01', '1900-01-01_first.png'), 'utf8'), 'elder')
+
     done()
   }
 })
