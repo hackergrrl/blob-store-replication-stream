@@ -194,7 +194,7 @@ module.exports = function (store, opts) {
       collect(store.createReadStream(name), function (err, data) {
         if (err) return dup.emit('error', err)
         encoder.write(name)
-        encoder.write(data)
+        if (data.length) encoder.write(data)
 
         filesXferred++ && emitProgress()
 

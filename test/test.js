@@ -402,6 +402,37 @@ test('opts.filter', function (t, dir, done) {
   }
 })
 
+test('size zero file', function (t, dir, done) {
+  t.plan(5)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store(root1)
+  var root2 = path.join(dir, '2')
+  var store2 = Store(root2)
+
+  var ws = store1.createWriteStream('empty.txt')
+  ws.on('finish', function () {
+    replicateStores(store1, store2, check)
+  })
+  ws.on('error', function (err) {
+    t.error(err)
+  })
+  ws.end()
+
+  function check (err) {
+    t.error(err)
+    store1.exists('empty.txt', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'exists in original store')
+    })
+    store2.exists('empty.txt', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'exists in remote store')
+    })
+    done()
+  }
+})
+
 function writeFile (store, name, data, done) {
   var ws = store.createWriteStream(name)
   ws.on('finish', done)
