@@ -433,6 +433,52 @@ test('size zero file', function (t, dir, done) {
   }
 })
 
+test('size zero file + a non-zero file', function (t, dir, done) {
+  t.plan(11)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store(root1)
+  var root2 = path.join(dir, '2')
+  var store2 = Store(root2)
+
+  var pending = 2
+
+  var ws1 = store1.createWriteStream('empty.txt')
+  ws1.on('finish', done)
+  ws1.on('error', done)
+  ws1.end()
+
+  var ws2 = store1.createWriteStream('hello.txt')
+  ws2.on('finish', done)
+  ws2.on('error', done)
+  ws2.end('hello world')
+
+  function done (err) {
+    t.error(err)
+    if (!--pending) replicateStores(store1, store2, check)
+  }
+
+  function check (err) {
+    t.error(err)
+    store1.exists('empty.txt', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'empty.txt exists in original store')
+    })
+    store1.exists('hello.txt', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'hello.txt exists in original store')
+    })
+    store2.exists('empty.txt', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'empty.txt exists in remote store')
+    })
+    store2.exists('hello.txt', function (err, exists) {
+      t.error(err)
+      t.ok(exists, 'hello.txt exists in remote store')
+    })
+  }
+})
+
 function writeFile (store, name, data, done) {
   var ws = store.createWriteStream(name)
   ws.on('finish', done)

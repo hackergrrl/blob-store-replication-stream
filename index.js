@@ -15,7 +15,7 @@ module.exports = function (store, opts) {
   var filesXferred = 0
 
   var encoder = lpstream.encode()
-  var decoder = lpstream.decode()
+  var decoder = lpstream.decode({allowEmpty:true})
 
   var dup = duplexify(decoder, encoder)
   var localHaves = null
@@ -195,6 +195,7 @@ module.exports = function (store, opts) {
         if (err) return dup.emit('error', err)
         encoder.write(name)
         if (data.length) encoder.write(data)
+        else encoder.write(Buffer.alloc(0))
 
         filesXferred++ && emitProgress()
 
