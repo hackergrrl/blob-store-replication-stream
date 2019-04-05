@@ -181,16 +181,16 @@ module.exports = function (store, opts) {
   }
 
   function sendRequested (toSend, done) {
-    var pending = toSend.length
-
-    debug('' + ID, 'writing', pending)
-    encoder.write(JSON.stringify(pending))
+    debug('' + ID, 'writing', toSend.length)
+    encoder.write(JSON.stringify(toSend.length))
     debug('' + ID, 'wrote # of entries count')
 
     if (toSend.length === 0) return process.nextTick(done)
 
-    toSend.forEach(function (name) {
+    function next (n) {
+      var name = toSend[n]
       debug('' + ID, 'collecting', name)
+      // TODO: stream content from disk straight to the encoder stream
       collect(store.createReadStream(name), function (err, data) {
         if (err) return dup.emit('error', err)
         encoder.write(name)
@@ -200,9 +200,11 @@ module.exports = function (store, opts) {
         filesXferred++ && emitProgress()
 
         debug('' + ID, 'collected + wrote', name, err, data && data.length)
-        if (--pending === 0) done()
+
+        if (n === toSend.length - 1) done(); else next(n+1)
       })
-    })
+    }
+    next(0)
   }
 
   return dup
