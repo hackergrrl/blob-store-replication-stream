@@ -97,6 +97,9 @@ Valid `opts` include:
   - `'push'`: entries will only be sent, not fetched
 - `filter`: a function that takes a filename and returns `true` if it should be synced to the other side, or `false` if it shouldn't
 
+In addition, `stream` will emit `'progress'` events with parameters `filesSent`
+and `filesTotal` for tracking sync progress.
+
 ## Install
 
 With [npm](https://npmjs.org/) installed, run

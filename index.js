@@ -10,7 +10,6 @@ module.exports = function (store, opts) {
   opts = opts || {}
   var ID = Math.round(Math.random() * 50)
 
-  var progressFn = opts.progressFn || noop
   var filesToXfer = 0
   var filesXferred = 0
 
@@ -115,6 +114,7 @@ module.exports = function (store, opts) {
   }
 
   function terminate () {
+    emitProgress()
     if (remoteDone) {
       debug('' + ID, 'replication done')
       debug('' + ID, 'TERMINATING')
@@ -210,7 +210,7 @@ module.exports = function (store, opts) {
   return dup
 
   function emitProgress () {
-    progressFn(filesXferred / filesToXfer)
+    dup.emit('progress', filesXferred, filesToXfer)
   }
 }
 

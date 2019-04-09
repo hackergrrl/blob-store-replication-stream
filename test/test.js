@@ -487,6 +487,65 @@ function writeFile (store, name, data, done) {
   ws.end()
 }
 
+test('progress events', function (t, dir, done) {
+  t.plan(11)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
+  var root2 = path.join(dir, '2')
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
+  var lastSofarA, lastTotalA
+  var lastSofarB, lastTotalB
+
+  var pending = 5
+  writeFile(store1, '2010-01-01_foo.png', 'hello', written)
+  writeFile(store1, '2010-01-05_bar.png', 'goodbye', written)
+  writeFile(store1, '1976-12-17_quux.png', 'unix', written)
+  writeFile(store2, '1900-01-01_first.png', 'elder', written)
+  writeFile(store2, '2010-01-05_bar.png', 'goodbye', written)
+
+  function written (err) {
+    t.error(err, 'file setup write ok')
+    if (--pending === 0) {
+      sync()
+    }
+  }
+
+  function sync () {
+    var r1 = replicate(store1)
+    var r2 = replicate(store2)
+
+    r1.on('progress', function (sofar, total) {
+      lastSofarA = sofar
+      lastTotalA = total
+    })
+    r2.on('progress', function (sofar, total) {
+      lastSofarB = sofar
+      lastTotalB = total
+    })
+
+    r1.pipe(r2).pipe(r1)
+    r1.on('end', fin)
+    r1.on('error', fin)
+    r2.on('end', fin)
+    r2.on('error', fin)
+
+    var pending = 2
+    function fin (err) {
+      t.error(err, 'sync ok')
+      if (!--pending) check()
+    }
+  }
+
+  function check () {
+    t.equals(lastSofarA, 3, 'sofar A good')
+    t.equals(lastTotalA, 3, 'total A good')
+    t.equals(lastSofarB, 3, 'sofar B good')
+    t.equals(lastTotalB, 3, 'total B good')
+    done()
+  }
+})
+
 function replicateStores (s1, s2, opts, cb) {
   if (!cb && typeof opts === 'function') {
     cb = opts
