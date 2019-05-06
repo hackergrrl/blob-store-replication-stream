@@ -1,5 +1,8 @@
 # blob-store-replication-stream
 
+[![Build
+Status](https://travis-ci.org/digidem/blob-store-replication-stream.svg?branch=master)](https://travis-ci.org/digidem/blob-store-replication-stream)
+
 > Replicate two
 > [abstract-blob-store](https://github.com/maxogden/abstract-blob-store) compatible stores together (with caveats).
 
