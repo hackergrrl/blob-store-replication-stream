@@ -1,5 +1,7 @@
 var tapeTest = require('tape')
 var Store = require('safe-fs-blob-store')
+var mkdirp = require('mkdirp')
+var pump = require('pump')
 var tmp = require('tempy')
 var rimraf = require('rimraf')
 var fs = require('fs')
@@ -11,10 +13,12 @@ var websocket = require('websocket-stream')
 function test (name, run) {
   tapeTest(name, function (t) {
     var dir = tmp.directory()
-    run(t, dir, cleanup)
-    function cleanup () {
-      rimraf.sync(dir)
-    }
+    mkdirp(dir, () => {
+      run(t, dir, cleanup)
+      function cleanup () {
+        rimraf.sync(dir)
+      }
+    })
   })
 }
 
@@ -121,26 +125,26 @@ test('replication stream: 3 files <-> 2 files (1 common)', function (t, dir, don
 })
 
 test('websocket replication', function (t, dir, done) {
-  t.plan(4)
+  t.plan(7)
 
   var root1 = path.join(dir, '1')
-  var store1 = Store({path: root1, subDirPrefixLen: 7})
+  var store1 = Store({path: root1})
   var root2 = path.join(dir, '2')
-  var store2 = Store({path: root2, subDirPrefixLen: 7})
+  var store2 = Store({path: root2})
 
   var wss, web
 
   writeFile(store1, 'foo.txt', 'bar', function (err) {
     t.error(err)
+    t.equal(fs.readdirSync(root1).length, 1)
+    t.ok(fs.existsSync(path.join(root1, 'fo', 'foo.txt')), 'file written')
 
     // server
     web = http.createServer()
     web.listen(2389)
     wss = websocket.createServer({server:web}, function (socket) {
       var rs = replicate(store2)
-      socket.pipe(rs).pipe(socket)
-      rs.on('end', done.bind(null, 'rs'))
-      socket.on('end', done.bind(null, 'socket'))
+      rs.pipe(socket).pipe(rs)
     })
 
     // client
@@ -149,21 +153,15 @@ test('websocket replication', function (t, dir, done) {
       binary: true
     })
     var r1 = replicate(store1)
-    r1.pipe(ws).pipe(r1)
-    r1.on('end', done.bind(null, 'r1'))
-    ws.on('end', done.bind(null, 'ws'))
-  })
-
-  var pending = 4
-  function done (name) {
-    if (!--pending) {
+    pump(r1, ws, r1, (err) => {
+      t.error(err)
       t.ok(true, 'replication ended')
-      t.ok(fs.existsSync(path.join(root2, 'foo', 'foo.txt')))
-      t.equal(fs.readFileSync(path.join(root2, 'foo', 'foo.txt'), 'utf8'), 'bar')
+      t.ok(fs.existsSync(path.join(root2, 'fo', 'foo.txt')))
+      t.equal(fs.readFileSync(path.join(root2, 'fo', 'foo.txt'), 'utf8'), 'bar')
 
       web.close(done)
-    }
-  }
+    })
+  })
 })
 
 test('pull-mode: 3 files <-> 2 files (1 common)', function (t, dir, done) {
@@ -444,16 +442,16 @@ test('size zero file + a non-zero file', function (t, dir, done) {
   var pending = 2
 
   var ws1 = store1.createWriteStream('empty.txt')
-  ws1.on('finish', done)
-  ws1.on('error', done)
+  ws1.on('finish', written)
+  ws1.on('error', written)
   ws1.end()
 
   var ws2 = store1.createWriteStream('hello.txt')
-  ws2.on('finish', done)
-  ws2.on('error', done)
+  ws2.on('finish', written)
+  ws2.on('error', written)
   ws2.end('hello world')
 
-  function done (err) {
+  function written (err) {
     t.error(err)
     if (!--pending) replicateStores(store1, store2, check)
   }
@@ -488,21 +486,26 @@ function writeFile (store, name, data, done) {
 }
 
 test('progress events', function (t, dir, done) {
-  t.plan(11)
-
+  t.plan(14)
   var root1 = path.join(dir, '1')
   var store1 = Store({path: root1, subDirPrefixLen: 7})
   var root2 = path.join(dir, '2')
   var store2 = Store({path: root2, subDirPrefixLen: 7})
-  var lastSofarA, lastTotalA
-  var lastSofarB, lastTotalB
+  var lastSofar1, lastTotal1
+  var lastSofar2, lastTotal2
 
-  var pending = 5
+  var pending = 9
   writeFile(store1, '2010-01-01_foo.png', 'hello', written)
-  writeFile(store1, '2010-01-05_bar.png', 'goodbye', written)
   writeFile(store1, '1976-12-17_quux.png', 'unix', written)
-  writeFile(store2, '1900-01-01_first.png', 'elder', written)
+  writeFile(store1, '1986-12-17_quux.png', 'boop', written)
+
+  writeFile(store1, '2010-01-05_bar.png', 'goodbye', written)
   writeFile(store2, '2010-01-05_bar.png', 'goodbye', written)
+
+  writeFile(store2, '1900-01-01_first.png', 'elder', written)
+  writeFile(store2, '2010-01-07_baz.png', 'goodbaz', written)
+  writeFile(store2, '2010-01-07_beezonk.png', 'goodbaz', written)
+  writeFile(store2, '2010-01-05_bizonk.png', 'goodbizonk', written)
 
   function written (err) {
     t.error(err, 'file setup write ok')
@@ -516,32 +519,25 @@ test('progress events', function (t, dir, done) {
     var r2 = replicate(store2)
 
     r1.on('progress', function (sofar, total) {
-      lastSofarA = sofar
-      lastTotalA = total
+      lastSofar1 = sofar
+      lastTotal1 = total
     })
     r2.on('progress', function (sofar, total) {
-      lastSofarB = sofar
-      lastTotalB = total
+      lastSofar2 = sofar
+      lastTotal2 = total
     })
 
-    r1.pipe(r2).pipe(r1)
-    r1.on('end', fin)
-    r1.on('error', fin)
-    r2.on('end', fin)
-    r2.on('error', fin)
-
-    var pending = 2
-    function fin (err) {
+    pump(r1, r2, r1, (err) => {
       t.error(err, 'sync ok')
-      if (!--pending) check()
-    }
+      check()
+    })
   }
 
   function check () {
-    t.equals(lastSofarA, 3, 'sofar A good')
-    t.equals(lastTotalA, 3, 'total A good')
-    t.equals(lastSofarB, 3, 'sofar B good')
-    t.equals(lastTotalB, 3, 'total B good')
+    t.equals(lastSofar1, 7, 'sofar A good')
+    t.equals(lastTotal1, 7, 'total A good')
+    t.equals(lastSofar2, 7, 'sofar B good')
+    t.equals(lastTotal2, 7, 'total B good')
     done()
   }
 })
@@ -557,18 +553,5 @@ function replicateStores (s1, s2, opts, cb) {
   var r1 = replicate(s1, opts.s1)
   var r2 = replicate(s2, opts.s2)
 
-  r1.pipe(r2).pipe(r1)
-  r1.on('end', check)
-  r1.on('error', check)
-  r2.on('end', check)
-  r2.on('error', check)
-
-  var pending = 2
-  function check (err) {
-    if (err) {
-      pending = Infinity
-      cb(err)
-    }
-    if (!--pending) cb()
-  }
+  pump(r1, r2, r1, cb)
 }

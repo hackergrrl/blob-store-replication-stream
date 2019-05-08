@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "rimraf": "^2.6.2",
+    "pump": "^3.0.0",
     "safe-fs-blob-store": "^1.0.1",
     "standard": "~10.0.0",
     "tape": "~4.6.2",

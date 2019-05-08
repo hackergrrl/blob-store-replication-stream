@@ -210,7 +210,9 @@ module.exports = function (store, opts) {
   return dup
 
   function emitProgress () {
-    dup.emit('progress', filesXferred, filesToXfer)
+    var sofar = filesXferred
+    var total = filesToXfer
+    dup.emit('progress', sofar, total)
   }
 }
 
