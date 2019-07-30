@@ -90,7 +90,8 @@ module.exports = function (store, opts) {
         debug(''+ID, 'recving a remote file', fn)
         var ws = store.createWriteStream(fn, function (err) {
           if (err) return dup.emit('error', err)
-          filesXferred++ && emitProgress()
+          filesXferred++
+          emitProgress()
           debug(''+ID, 'recv\'d a remote file', fn)
           if (--numFilesToRecv === 0) {
             debug('' + ID, 'ALL RECEIVED')
@@ -114,7 +115,6 @@ module.exports = function (store, opts) {
   }
 
   function terminate () {
-    emitProgress()
     if (remoteDone) {
       debug('' + ID, 'replication done')
       debug('' + ID, 'TERMINATING')
@@ -197,7 +197,8 @@ module.exports = function (store, opts) {
         if (data.length) encoder.write(data)
         else encoder.write(Buffer.alloc(0))
 
-        filesXferred++ && emitProgress()
+        filesXferred++
+        emitProgress()
 
         debug('' + ID, 'collected + wrote', name, err, data && data.length)
 
