@@ -88,10 +88,12 @@ module.exports = function (store, opts) {
       case 'wait-remote-file-data':
         var fn = pendingFilename
         debug(''+ID, 'recving a remote file', fn)
+        decoder.pause()
         var ws = store.createWriteStream(fn, function (err) {
           if (err) return dup.emit('error', err)
           filesXferred++
           emitProgress()
+          decoder.resume()
           debug(''+ID, 'recv\'d a remote file', fn)
           if (--numFilesToRecv === 0) {
             debug('' + ID, 'ALL RECEIVED')
@@ -193,8 +195,8 @@ module.exports = function (store, opts) {
       // TODO: stream content from disk straight to the encoder stream
       collect(store.createReadStream(name), function (err, data) {
         if (err) return dup.emit('error', err)
-        encoder.write(name)
-        if (data.length) encoder.write(data)
+        var res = encoder.write(name)
+        if (data.length) res = encoder.write(data)
         else encoder.write(Buffer.alloc(0))
 
         filesXferred++
@@ -202,7 +204,16 @@ module.exports = function (store, opts) {
 
         debug('' + ID, 'collected + wrote', name, err, data && data.length)
 
-        if (n === toSend.length - 1) done(); else next(n+1)
+
+        if (n === toSend.length - 1) return done()
+
+        if (!res) {
+          encoder.once('drain', function () {
+            next(n+1)
+          })
+        } else {
+          next(n+1)
+        }
       })
     }
     next(0)
