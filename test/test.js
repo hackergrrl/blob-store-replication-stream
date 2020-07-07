@@ -479,14 +479,6 @@ test('size zero file + a non-zero file', function (t, dir, done) {
   }
 })
 
-function writeFile (store, name, data, done) {
-  var ws = store.createWriteStream(name)
-  ws.on('finish', done)
-  ws.on('error', done)
-  ws.write(data)
-  ws.end()
-}
-
 test('progress events', function (t, dir, done) {
   t.plan(11)
 
@@ -546,6 +538,55 @@ test('progress events', function (t, dir, done) {
   }
 })
 
+test('lots of blobs', function (t, dir, done) {
+  t.plan(4)
+
+  var root1 = path.join(dir, '1')
+  var store1 = Store({path: root1, subDirPrefixLen: 7})
+  var root2 = path.join(dir, '2')
+  var store2 = Store({path: root2, subDirPrefixLen: 7})
+  var lastSofarA, lastTotalA
+  var lastSofarB, lastTotalB
+
+  function write (store, n, cb) {
+    if (!n) return cb()
+    writeFile(store, String(Math.random()).substring(3) + '.png', Buffer.alloc(1024 * 100).fill(0), function () {
+      write(store, n-1, cb)
+    })
+  }
+
+  write(store1, 200, function (err) {
+    t.error(err, 'setup ok')
+    sync()
+  })
+
+  function slow (delay) {
+    return through((chunk, enc, next) => {
+      setTimeout(() => {
+        next(null, chunk)
+      }, delay)
+    })
+  }
+
+  function sync () {
+    var r1 = replicate(store1)
+    var r2 = replicate(store2)
+
+    r1.pipe(r2).pipe(r1)
+    r2.on('end', fin)
+    r2.on('error', fin)
+
+    function fin (err) {
+      t.error(err, 'sync ok')
+      store2.list(function (err, files) {
+        t.error(err, 'list ok')
+        t.same(files.length, 200, '# of files on remote ok')
+        done()
+      })
+    }
+  }
+})
+
 function replicateStores (s1, s2, opts, cb) {
   if (!cb && typeof opts === 'function') {
     cb = opts
@@ -572,3 +613,12 @@ function replicateStores (s1, s2, opts, cb) {
     if (!--pending) cb()
   }
 }
+
+function writeFile (store, name, data, done) {
+  var ws = store.createWriteStream(name)
+  ws.on('finish', done)
+  ws.on('error', done)
+  ws.write(data)
+  ws.end()
+}
+
