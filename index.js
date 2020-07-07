@@ -153,8 +153,8 @@ module.exports = function (store, opts) {
   }
 
   function handleRemoteHaves (data) {
-    debug('' + ID, 'got remote haves', data.toString())
     remoteHaves = JSON.parse(data.toString())
+    debug('' + ID, 'got ' + remoteHaves.length + ' remote haves', remoteHaves)
 
     // In push mode: deduplicate the entries both sides have in common; just
     // ask for the ones missing from the local store
